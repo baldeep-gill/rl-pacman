@@ -27,6 +27,8 @@ from __future__ import print_function
 
 import random
 
+import numpy as np
+
 from pacman import Directions, GameState
 from pacman_utils.game import Agent
 from pacman_utils import util
@@ -224,8 +226,17 @@ class QLearnAgent(Agent):
             state: Starting state
             action: Action taken
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        position = state.pacPos
+
+        if position not in self.nTable:
+            self.nTable.update(position, {})
+
+        nums = self.nTable.get(position)
+
+        if action not in nums:
+            nums.update(action, 0)
+
+        nums.update(action, nums.get(action) + 1)
 
     # WARNING: You will be tested on the functionality of this method
     # DO NOT change the function signature
@@ -240,8 +251,8 @@ class QLearnAgent(Agent):
         Returns:
             Number of times that the action has been taken in a given state
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        
+        return self.nTable.get(state.pacPos, 0).get(action, 0)
 
     # WARNING: You will be tested on the functionality of this method
     # DO NOT change the function signature
@@ -261,8 +272,11 @@ class QLearnAgent(Agent):
         Returns:
             The exploration value
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        # optimistic reward
+        opt_reward: float = utility + float(1)
+        N = 2
+
+        return opt_reward if counts < N else utility
 
     # WARNING: You will be tested on the functionality of this method
     # DO NOT change the function signature
@@ -286,18 +300,20 @@ class QLearnAgent(Agent):
             legal.remove(Directions.STOP)
 
         # logging to help you understand the inputs, feel free to remove
-        print("Legal moves: ", legal)
-        print("Pacman position: ", state.getPacmanPosition())
-        print("Ghost positions:", state.getGhostPositions())
-        print("Food locations: ")
-        print(state.getFood())
-        print("Score: ", state.getScore())
+        # print("Legal moves: ", legal)
+        # print("Pacman position: ", state.getPacmanPosition())
+        # print("Ghost positions:", state.getGhostPositions())
+        # print("Food locations: ")
+        # print(state.getFood())
+        # print("Score: ", state.getScore())
 
         stateFeatures = GameStateFeatures(state)
+        vals = []
 
-        # Now pick what action to take.
-        # The current code shows how to do that but just makes the choice randomly.
-        return random.choice(legal)
+        for i in range(0, len(legal)):
+            vals[i] = self.explorationFn(self.getQValue(stateFeatures, legal[i]), self.getCount(stateFeatures, legal[i]))
+
+        return legal[np.argmax(vals)]
 
     def final(self, state: GameState):
         """
