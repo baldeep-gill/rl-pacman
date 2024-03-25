@@ -82,6 +82,11 @@ class QLearnAgent(Agent):
             numTraining: number of training episodes
         """
         super().__init__()
+
+        # Both are dictionaries of dictionaries. State (x, y) will be used as the first key and an action will be used as the second key
+        self.qTable = {} # Q-table holding Q-values for each state/action pair
+        self.nTable = {} # Occurence table holding the number of times each state/action pair occurs
+
         self.alpha = float(alpha)
         self.epsilon = float(epsilon)
         self.gamma = float(gamma)
@@ -129,6 +134,7 @@ class QLearnAgent(Agent):
         Returns:
             The reward assigned for the given trajectory
         """
+
         return (endState.getScore() - startState.getScore())
 
     # WARNING: You will be tested on the functionality of this method
@@ -144,8 +150,18 @@ class QLearnAgent(Agent):
         Returns:
             Q(state, action)
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+
+        position = state.pacPos
+
+        # If we have not seen the position before, put it in the Q-table pointing to an empty dict
+        if position not in self.qTable:
+            self.qTable.update(position, {})
+
+        # If we have not seen an action before for the given state, initialise this state/action pair with 0
+        if action not in self.qTable.get(position):
+            self.qTable.get(position).update(action, float(0))
+
+        return self.qTable.get(position).get(action)
 
     # WARNING: You will be tested on the functionality of this method
     # DO NOT change the function signature
@@ -157,8 +173,17 @@ class QLearnAgent(Agent):
         Returns:
             q_value: the maximum estimated Q-value attainable from the state
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        position = state.pacPos
+
+        # If we have not seen the position before, put it in the Q-table pointing to an empty dict
+        if position not in self.qTable:
+            self.qTable.update(position, {})
+
+        # Get all the Q-values for the specified position
+        floats = self.qTable.get(position).values()
+        
+        # Return 0 if there aren't any Q-values else return the maximum Q-value
+        return float(0) if not floats else max(floats)
 
     # WARNING: You will be tested on the functionality of this method
     # DO NOT change the function signature
