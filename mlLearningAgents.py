@@ -157,11 +157,11 @@ class QLearnAgent(Agent):
 
         # If we have not seen the position before, put it in the Q-table pointing to an empty dict
         if position not in self.qTable:
-            self.qTable.update(position, {})
+            self.qTable.update({position: {}})
 
         # If we have not seen an action before for the given state, initialise this state/action pair with 0
         if action not in self.qTable.get(position):
-            self.qTable.get(position).update(action, float(0))
+            self.qTable.get(position).update({action: float(0)})
 
         return self.qTable.get(position).get(action)
 
@@ -179,7 +179,7 @@ class QLearnAgent(Agent):
 
         # If we have not seen the position before, put it in the Q-table pointing to an empty dict
         if position not in self.qTable:
-            self.qTable.update(position, {})
+            self.qTable.update({position: {}})
 
         # Get all the Q-values for the specified position
         floats = self.qTable.get(position).values()
@@ -212,7 +212,7 @@ class QLearnAgent(Agent):
         update_value = qVal + self.alpha * (reward + (self.gamma * max_val) - qVal)
         
         # update Q-table with new Q-value
-        self.qTable.get(state.pacPos).update(action, update_value)
+        self.qTable.get(state.pacPos).update({action: update_value})
 
     # WARNING: You will be tested on the functionality of this method
     # DO NOT change the function signature
@@ -229,14 +229,14 @@ class QLearnAgent(Agent):
         position = state.pacPos
 
         if position not in self.nTable:
-            self.nTable.update(position, {})
+            self.nTable.update({position: {}})
 
         nums = self.nTable.get(position)
 
         if action not in nums:
-            nums.update(action, 0)
+            nums.update({action: 0})
 
-        nums.update(action, nums.get(action) + 1)
+        nums.update({action: nums.get(action) + 1})
 
     # WARNING: You will be tested on the functionality of this method
     # DO NOT change the function signature
@@ -251,8 +251,17 @@ class QLearnAgent(Agent):
         Returns:
             Number of times that the action has been taken in a given state
         """
-        
-        return self.nTable.get(state.pacPos, 0).get(action, 0)
+        position = state.pacPos
+
+        if position not in self.nTable:
+            self.nTable.update({position: {}})
+
+        vals = self.nTable.get(position)
+
+        if action not in vals:
+            vals.update({action: 0})
+
+        return vals.get(action)
 
     # WARNING: You will be tested on the functionality of this method
     # DO NOT change the function signature
@@ -310,14 +319,14 @@ class QLearnAgent(Agent):
         stateFeatures = GameStateFeatures(state)
         vals = []
 
-        for i in range(0, len(legal)):
-            vals[i] = self.explorationFn(self.getQValue(stateFeatures, legal[i]), self.getCount(stateFeatures, legal[i]))
+        for i in range(0, len(legal) - 1):
+            vals.append(self.explorationFn(self.getQValue(stateFeatures, legal[i]), self.getCount(stateFeatures, legal[i])))
 
         action = legal[np.argmax(vals)]
         next_state = state.generatePacmanSuccessor(action)
 
         self.updateCount(stateFeatures, action)
-        self.learn(stateFeatures, action, self.computeReward(state, next_state), next_state)
+        self.learn(stateFeatures, action, self.computeReward(state, next_state), GameStateFeatures(next_state))
 
         return action
 
