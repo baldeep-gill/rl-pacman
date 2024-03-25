@@ -47,8 +47,16 @@ class GameStateFeatures:
             state: A given game state object
         """
 
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        self.pacPos = state.getPacmanPosition()
+        self.pacDir = state.getPacmanState().getDirection()
+        self.ghostPos = state.getGhostPositions()
+        self.food = state.getFood() # if food[x][y] == ?: ...
+
+        def __hash__(self):
+            return state.__hash__(self)
+
+        def __eq__(self, other):
+            return state.__eq__(self, other)
 
 
 class QLearnAgent(Agent):
@@ -121,8 +129,7 @@ class QLearnAgent(Agent):
         Returns:
             The reward assigned for the given trajectory
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        return (endState.getScore() - startState.getScore())
 
     # WARNING: You will be tested on the functionality of this method
     # DO NOT change the function signature
