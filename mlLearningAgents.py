@@ -201,8 +201,16 @@ class QLearnAgent(Agent):
             nextState: the resulting state
             reward: the reward received on this trajectory
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        # Q[s, a]
+        qVal = self.getQValue(state, action)
+        # max{a'} Q[s', a']
+        max_val = self.maxQValue(nextState)
+
+        # perform update rule
+        update_value = qVal + self.alpha * (reward + (self.gamma * max_val) - qVal)
+        
+        # update Q-table with new Q-value
+        self.qTable.get(state.pacPos).update(action, update_value)
 
     # WARNING: You will be tested on the functionality of this method
     # DO NOT change the function signature
