@@ -29,7 +29,7 @@ import random
 
 import numpy as np
 
-from pacman import Directions, GameState
+from pacman import Directions, GameState, PacmanRules
 from pacman_utils.game import Agent
 from pacman_utils import util
 
@@ -48,24 +48,25 @@ class GameStateFeatures:
         Args:
             state: A given game state object
         """
-
-        self.pacPos = state.getPacmanPosition()
-        self.pacDir = state.getPacmanState().getDirection()
-        self.ghostPos = state.getGhostPositions()
+        self.state = state
+        self.legal = state.getLegalPacmanActions()
+        self.position = state.getPacmanPosition()
+        self.ghostPositions = state.getGhostPositions()
         self.food = state.getFood() # if food[x][y] == ?: ...
 
-        def __hash__(self):
-            return state.__hash__(self)
+    # hash and eq functions taken from the definitions for GameState
+    def __hash__(self):
+        return hash(self.state.data)
 
-        def __eq__(self, other):
-            return state.__eq__(self, other)
+    def __eq__(self, other):
+        return self.state == other.state
 
 
 class QLearnAgent(Agent):
 
     def __init__(self,
-                 alpha: float = 0.2,
-                 epsilon: float = 0.05,
+                 alpha: float = 0.13,
+                 epsilon: float = 0.1,
                  gamma: float = 0.8,
                  maxAttempts: int = 30,
                  numTraining: int = 10):
@@ -85,7 +86,7 @@ class QLearnAgent(Agent):
         """
         super().__init__()
 
-        # Both are dictionaries of dictionaries. State (x, y) will be used as the first key and an action will be used as the second key
+        # Both are dictionaries of dictionaries. State will be used as the first key and an action will be used as the second key
         self.qTable = {} # Q-table holding Q-values for each state/action pair
         self.nTable = {} # Occurence table holding the number of times each state/action pair occurs
 
@@ -153,17 +154,15 @@ class QLearnAgent(Agent):
             Q(state, action)
         """
 
-        position = state.pacPos
-
-        # If we have not seen the position before, put it in the Q-table pointing to an empty dict
-        if position not in self.qTable:
-            self.qTable.update({position: {}})
+        # If we have not seen the state before, put it in the Q-table pointing to an empty dict
+        if state not in self.qTable:
+            self.qTable.update({state: {}})
 
         # If we have not seen an action before for the given state, initialise this state/action pair with 0
-        if action not in self.qTable.get(position):
-            self.qTable.get(position).update({action: float(0)})
+        if action not in self.qTable.get(state):
+            self.qTable.get(state).update({action: float(0)})
 
-        return self.qTable.get(position).get(action)
+        return self.qTable.get(state).get(action)
 
     # WARNING: You will be tested on the functionality of this method
     # DO NOT change the function signature
@@ -175,17 +174,12 @@ class QLearnAgent(Agent):
         Returns:
             q_value: the maximum estimated Q-value attainable from the state
         """
-        position = state.pacPos
-
-        # If we have not seen the position before, put it in the Q-table pointing to an empty dict
-        if position not in self.qTable:
-            self.qTable.update({position: {}})
-
-        # Get all the Q-values for the specified position
-        floats = self.qTable.get(position).values()
+        vals = []
         
-        # Return 0 if there aren't any Q-values else return the maximum Q-value
-        return float(0) if not floats else max(floats)
+        for a in state.legal:
+            vals.append(self.getQValue(state, a))
+
+        return float(0) if len(vals) == 0 else max(vals)
 
     # WARNING: You will be tested on the functionality of this method
     # DO NOT change the function signature
@@ -203,16 +197,17 @@ class QLearnAgent(Agent):
             nextState: the resulting state
             reward: the reward received on this trajectory
         """
+        
         # Q[s, a]
         qVal = self.getQValue(state, action)
         # max{a'} Q[s', a']
         max_val = self.maxQValue(nextState)
-
+        
         # perform update rule
-        update_value = qVal + self.alpha * (reward + (self.gamma * max_val) - qVal)
+        update_value = qVal + (self.alpha * (reward + (self.gamma * max_val) - qVal))
         
         # update Q-table with new Q-value
-        self.qTable.get(state.pacPos).update({action: update_value})
+        self.qTable.get(state).update({action: update_value})
 
     # WARNING: You will be tested on the functionality of this method
     # DO NOT change the function signature
@@ -226,17 +221,13 @@ class QLearnAgent(Agent):
             state: Starting state
             action: Action taken
         """
-        position = state.pacPos
+        if state not in self.nTable:
+            self.nTable.update({state: {}})
 
-        if position not in self.nTable:
-            self.nTable.update({position: {}})
+        if action not in self.nTable.get(state):
+            self.nTable.get(state).update({action: 0})
 
-        nums = self.nTable.get(position)
-
-        if action not in nums:
-            nums.update({action: 0})
-
-        nums.update({action: nums.get(action) + 1})
+        self.nTable.get(state).update({action: self.nTable.get(state).get(action) + 1})
 
     # WARNING: You will be tested on the functionality of this method
     # DO NOT change the function signature
@@ -251,17 +242,13 @@ class QLearnAgent(Agent):
         Returns:
             Number of times that the action has been taken in a given state
         """
-        position = state.pacPos
+        if state not in self.nTable:
+            self.nTable.update({state: {}})
 
-        if position not in self.nTable:
-            self.nTable.update({position: {}})
+        if action not in self.nTable.get(state):
+            self.nTable.get(state).update({action: 0})
 
-        vals = self.nTable.get(position)
-
-        if action not in vals:
-            vals.update({action: 0})
-
-        return vals.get(action)
+        return self.nTable.get(state).get(action)
 
     # WARNING: You will be tested on the functionality of this method
     # DO NOT change the function signature
@@ -281,11 +268,19 @@ class QLearnAgent(Agent):
         Returns:
             The exploration value
         """
-        # optimistic reward
-        opt_reward: float = utility + float(1)
-        N = 2
+        # leaderboard:
+        # 0.10, 10 -> 5/10
+        # 0.10, 40 -> 4/10
+        # 0.10, 20 -> 6/10
+        # 0.15, 20 -> 5/10
+        # 0.15, 15 -> 4/10
+        # 0.13, 20 -> 4/10
+        # 0.12, 20 -> 4/10
+        # 0.11, 20 -> 6/10 81.4
+        opt_reward = 0.04
+        N = 35
 
-        return opt_reward if counts < N else utility
+        return opt_reward + utility if counts < N else utility
 
     # WARNING: You will be tested on the functionality of this method
     # DO NOT change the function signature
@@ -307,8 +302,9 @@ class QLearnAgent(Agent):
         legal = state.getLegalPacmanActions()
         if Directions.STOP in legal:
             legal.remove(Directions.STOP)
-
+            
         # logging to help you understand the inputs, feel free to remove
+        # if self.alpha == 0:
         # print("Legal moves: ", legal)
         # print("Pacman position: ", state.getPacmanPosition())
         # print("Ghost positions:", state.getGhostPositions())
@@ -318,14 +314,20 @@ class QLearnAgent(Agent):
 
         stateFeatures = GameStateFeatures(state)
         vals = []
+        explore = util.flipCoin(self.epsilon)
 
-        for i in range(0, len(legal) - 1):
+        for i in range(0, len(legal)):
+            # vals.append(self.getQValue(stateFeatures, legal[i]))
             vals.append(self.explorationFn(self.getQValue(stateFeatures, legal[i]), self.getCount(stateFeatures, legal[i])))
 
-        action = legal[np.argmax(vals)]
+        if explore:
+            action = random.choice(legal)
+        else:
+            action = legal[np.argmax(vals)]
+        
+        self.updateCount(stateFeatures, action)
         next_state = state.generatePacmanSuccessor(action)
 
-        self.updateCount(stateFeatures, action)
         self.learn(stateFeatures, action, self.computeReward(state, next_state), GameStateFeatures(next_state))
 
         return action
@@ -346,6 +348,7 @@ class QLearnAgent(Agent):
         self.incrementEpisodesSoFar()
         if self.getEpisodesSoFar() == self.getNumTraining():
             msg = 'Training Done (turning off epsilon and alpha)'
+            # print(self.qTable)
             print('%s\n%s' % (msg, '-' * len(msg)))
             self.setAlpha(0)
             self.setEpsilon(0)
