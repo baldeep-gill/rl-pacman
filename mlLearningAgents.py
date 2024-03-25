@@ -313,7 +313,13 @@ class QLearnAgent(Agent):
         for i in range(0, len(legal)):
             vals[i] = self.explorationFn(self.getQValue(stateFeatures, legal[i]), self.getCount(stateFeatures, legal[i]))
 
-        return legal[np.argmax(vals)]
+        action = legal[np.argmax(vals)]
+        next_state = state.generatePacmanSuccessor(action)
+
+        self.updateCount(stateFeatures, action)
+        self.learn(stateFeatures, action, self.computeReward(state, next_state), next_state)
+
+        return action
 
     def final(self, state: GameState):
         """
