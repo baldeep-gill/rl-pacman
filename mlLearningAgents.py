@@ -54,12 +54,21 @@ class GameStateFeatures:
         self.ghostPositions = state.getGhostPositions()
         self.food = state.getFood() # if food[x][y] == ?: ...
 
-    # hash and eq functions taken from the definitions for GameState
+    # hash and eq functions inspired by the definitions in GameState and GameStateData
     def __hash__(self):
-        return hash(self.state.data)
+        return int((hash(self.position) + 9 * hash(self.food) + 13 * hash(str(self.ghostPositions))) % 1048575)
 
     def __eq__(self, other):
-        return self.state == other.state
+        if other is None:
+            return False
+        if not self.state.getPacmanState() == other.state.getPacmanState():
+            return False
+        if not self.state.getGhostStates() == other.state.getGhostStates():
+            return False
+        if not self.food == other.food:
+            return False
+        
+        return True
 
 
 class QLearnAgent(Agent):
@@ -268,15 +277,6 @@ class QLearnAgent(Agent):
         Returns:
             The exploration value
         """
-        # leaderboard:
-        # 0.10, 10 -> 5/10
-        # 0.10, 40 -> 4/10
-        # 0.10, 20 -> 6/10
-        # 0.15, 20 -> 5/10
-        # 0.15, 15 -> 4/10
-        # 0.13, 20 -> 4/10
-        # 0.12, 20 -> 4/10
-        # 0.11, 20 -> 6/10 81.4
         opt_reward = 0.04
         N = 35
 
